@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Download on P2PFS</title>
+        <link rel="stylesheet" href="/style.css">
+    </head>
+    <body>
+        <a href="/">Home</a>
+        <h1>PCsoft P2PFS</h1>
+        <hr>
+        <b>Download ID</b>: <input id="downloadID" placeholder="Please enter a Download ID."></input>
+        <br>
+        <button id="downloadNow"><b>DOWNLOAD</b></button>
+        <hr>
+        File size: <label id="fileSize">0 MB</label>
+        <br>
+        Speed: <label id="speed">calculating...</label>
+        <br>
+        Start time: <label id="startTime">Now</label>
+        <br>
+        End time: <label id="endTime">calculating...</label>
+        <br>
+        Progress: <progress id="progressBar" value="0" max="100"></progress>
+        <br>
+        <em>Your IP will be logged. Please note that an IP address is public information.</em>
+        <div class="modalOverlay" id="modalOverlay"></div>
+        <div class="modal" id="modal">
+            Establishing a connection to the server...
+        </div>
+
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
+            let socket = io();
+            let avg = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
+            let doNotRedownload = false;
+
+            function displayModal() {
+                return new Promise(function(ok) {
+                    if (!modal.hidden) return ok();
+                    modalOverlay.hidden = false;
+                    modal.hidden = false;
+                    setTimeout(() => ok(), 500);
+                });
+            }
+
+            function closeModal() {
+                return new Promise(function(ok) {
+                    if (modal.classList.contains("modalClose") || modal.hidden) return ok();
+                    modal.classList.add("modalClose");
+                    setTimeout(function() {
+                        modalOverlay.hidden = true;
+                        modal.hidden = true;
+                        modal.classList.remove("modalClose");
+                        ok();
+                    }, 500);
+                });
+            }
+
+            socket.on("disconnect", async function(reason) {
+                modal.innerText = "Client got disconnected. Don't worry, it will automatically reconnect.\nReason (developer): " + reason;
+                await displayModal();
+            });
+
+            socket.on("connect", async function() {
+                await closeModal();
+            });
+
+            downloadNow.onclick = function() {
+                let id = downloadID.value;
+                downloadID.disabled = true;
+                socket.on("connect", () => doNotRedownload ? null : socket.emit("download_request", id));
+                socket.emit("download_request", id);
+                downloadNow.remove();
+                socket.on("download_ack", function(handshakeData) {
+                    let chunks = [];
+                    let speeds = [];
+                    let transferredBytesPerSecond = 0;
+                    let previousSpeedDate = Date.now();
+                    fileSize.innerText = bytesToReadable(handshakeData.fileSize);
+                    startTime.innerText = new Date().toLocaleDateString() + " " + new Date().toTimeString().split(" ")[0];
+
+                    socket.on("chunk", function(chunkData, ack) {
+                        chunks.push(chunkData.chunk);
+                        transferredBytesPerSecond += handshakeData.chunkSize;
+                        if (previousSpeedDate + 1000 < Date.now()) {
+                            previousSpeedDate = Date.now();
+                            speeds.push(transferredBytesPerSecond);
+                            transferredBytesPerSecond = 0;
+                            speed.innerText = bytesToReadable(avg(speeds)) + "/s";
+                            speed.title = "min: " + bytesToReadable(Math.min(...speeds)) + " (" + Math.min(...speeds) + " bytes)\nmax: " + bytesToReadable(Math.max(...speeds)) + " (" + Math.max(...speeds) + " bytes)\navg: " + bytesToReadable(avg(speeds)) + " (" + avg(speeds) + " bytes)";
+                            endTime.innerText = new Date(Date.now() + (handshakeData.fileSize - handshakeData.chunkSize * chunks.length) / avg(speeds) * 1000).toLocaleDateString() + " " + new Date(Date.now() + (handshakeData.fileSize - handshakeData.chunkSize * chunks.length) / avg(speeds) * 1000).toTimeString().split(" ")[0];
+                            endTime.title = "It is an estimate!";
+                        }
+                        progressBar.value = (handshakeData.chunkSize * chunks.length) / handshakeData.fileSize * 100;
+
+                        if ((chunks.length * handshakeData.chunkSize) >= handshakeData.fileSize) {
+                            endTime.innerText = new Date().toLocaleDateString() + " " + new Date().toTimeString().split(" ")[0];
+                            endTime.title = "";
+                            doNotRedownload = true;
+                            progressBar.value = 100;
+                            let file = new Uint8Array(handshakeData.fileSize);
+                            let offset = 0;
+
+                            for (let chunk of chunks) {
+                                file.set(new Uint8Array(chunk), offset);
+                                offset += handshakeData.chunkSize;
+                            }
+
+                            let blob = new Blob([file]);
+                            let downloadLink = document.createElement("a");
+                            downloadLink.href = URL.createObjectURL(blob);
+                            downloadLink.download = "file";
+                            downloadLink.click();
+                        }
+
+                        ack();
+                    });
+                });
+            }
+
+            function bytesToReadable(bytes) {
+                bytes = Math.floor(bytes);
+                let readable = "";
+                if (Math.floor(bytes / 1024 / 1024 / 1024)) readable = readable + Math.floor(bytes / 1024 / 1024 / 1024) + " GB ";
+                if (Math.floor(bytes / 1024 / 1024 % 1024)) readable = readable + Math.floor(bytes / 1024 / 1024 % 1024) + " MB ";
+                if (Math.floor(bytes / 1024 % 1024)) readable = readable + Math.floor(bytes / 1024 % 1024) + " KB ";
+                if (Math.floor(bytes % 1024)) readable = readable + (bytes % 1024) + " B ";
+                readable = readable.trim();
+                return readable;
+            }
+        </script>
+    </body>
+</html>

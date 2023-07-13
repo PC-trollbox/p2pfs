@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Upload on P2PFS</title>
+        <link rel="stylesheet" href="/style.css">
+    </head>
+    <body>
+        <a href="/">Home</a>
+        <h1>PCsoft P2PFS</h1>
+        <hr>
+        <b>Download ID</b>: <code id="downloadID">n/a</code>
+        <br>
+        <b>File</b>: <input type="file" id="fileSelector">
+        <br>
+        <b>Chunk size</b> <em title="Only modify if you know what you're doing. May affect download speed. Specify in bytes. Default value is 1048576 (1 MB)">[?]</em>: <input type="number" id="chunkSize" value="1048576">
+        <br>
+        <button id="uploadNow"><b>HOST</b></button>
+        <hr>
+        Downloads:
+        <br>
+        <table id="downloadTable">
+            <tr>
+                <th>IP</th>
+                <th>Speed</th>
+                <th>Date of start</th>
+                <th>Date of end</th>
+                <th>Progress bar</th>
+            </tr>
+        </table>
+        <div class="modalOverlay" id="modalOverlay"></div>
+        <div class="modal" id="modal">
+            Establishing a connection to the server...
+        </div>
+
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
+            let socket = io();
+            let file = null;
+            let callUsOnUpload = [];
+            let avg = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
+            let chunk = 1048576;
+
+            function displayModal() {
+                return new Promise(function(ok) {
+                    if (!modal.hidden) return ok();
+                    modalOverlay.hidden = false;
+                    modal.hidden = false;
+                    setTimeout(() => ok(), 500);
+                });
+            }
+
+            function closeModal() {
+                return new Promise(function(ok) {
+                    if (modal.classList.contains("modalClose") || modal.hidden) return ok();
+                    modal.classList.add("modalClose");
+                    setTimeout(function() {
+                        modalOverlay.hidden = true;
+                        modal.hidden = true;
+                        modal.classList.remove("modalClose");
+                        ok();
+                    }, 500);
+                });
+            }
+
+            socket.on("disconnect", async function(reason) {
+                modal.innerText = "Client got disconnected. Don't worry, it will automatically reconnect.\nReason (developer): " + reason;
+                await displayModal();
+            });
+
+            socket.on("connect", async function() {
+                downloadID.innerText = socket.id;
+                await closeModal();
+            });
+
+            uploadNow.onclick = function() {
+                if (!fileSelector.files[0]) return alert("You forgot to select a file");
+                if (Number(chunkSize.value) < 1) return alert("The current chunk size will prevent anyone from downloading the file!");
+                if (Number(chunkSize.value) > 26214400) alert("Warning: Chunk size is a bit too high.");
+                if (Number(chunkSize.value) < 1048576) alert("Warning: That will be a bit slow.");
+                chunk = Number(chunkSize.value) || 1048576;
+                chunkSize.disabled = true;
+                uploadNow.remove();
+                file = fileSelector.files[0];
+                fileSelector.disabled = true;
+                callUsOnUpload.forEach(ok => ok());
+                callUsOnUpload.length = 0;
+            }
+
+            function waitUntilFileProvided() {
+                return new Promise(function(ok) {
+                    if (file != null) return ok();
+                    callUsOnUpload.push(ok);
+                });
+            }
+
+            socket.on("download", async function(data) {
+                let offset = 0;
+                let chunkSize = chunk || 1048576;
+                let row = document.createElement("tr");
+                let ip = document.createElement("td");
+                let speed = document.createElement("td");
+                let dateStart = document.createElement("td");
+                let dateEnd = document.createElement("td");
+                let progress = document.createElement("td");
+                let progressBar = document.createElement("progress");
+                let speeds = [];
+                let transferredBytesPerSecond = 0;
+                let previousSpeedDate = Date.now();
+                ip.innerText = data.ip;
+                speed.innerText = "calculating...";
+                dateStart.innerText = new Date().toLocaleDateString() + " " + new Date().toTimeString().split(" ")[0];
+                dateEnd.innerText = "calculating...";
+                progressBar.max = 100;
+                progressBar.value = 0;
+                row.appendChild(ip);
+                row.appendChild(speed);
+                row.appendChild(dateStart);
+                row.appendChild(dateEnd);
+                row.appendChild(progress);
+                progress.appendChild(progressBar);
+                downloadTable.appendChild(row);
+                await waitUntilFileProvided();
+                socket.emit("download_ack", {
+                    id: data.id,
+                    fileSize: file.size,
+                    chunkSize
+                });
+
+                while (offset < file.size) {
+                    let chunk = file.slice(offset, offset + chunkSize);
+                    await socket.emitWithAck("chunk", {
+                        id: data.id,
+                        offset: offset,
+                        fileSize: file.size,
+                        chunk, chunkSize
+                    });
+                    progressBar.value = offset / file.size * 100;
+                    progress.title = "downloaded " + bytesToReadable(offset) + " out of " + bytesToReadable(file.size);
+                    transferredBytesPerSecond += chunkSize;
+                    if (previousSpeedDate + 1000 < Date.now()) {
+                        previousSpeedDate = Date.now();
+                        speeds.push(transferredBytesPerSecond);
+                        transferredBytesPerSecond = 0;
+                        speed.innerText = bytesToReadable(avg(speeds)) + "/s";
+                        speed.title = "min: " + bytesToReadable(Math.min(...speeds)) + " (" + Math.min(...speeds) + " bytes)\nmax: " + bytesToReadable(Math.max(...speeds)) + " (" + Math.max(...speeds) + " bytes)\navg: " + bytesToReadable(avg(speeds)) + " (" + avg(speeds) + " bytes)";
+                        dateEnd.innerText = new Date(Date.now() + (file.size - (offset + chunkSize)) / avg(speeds) * 1000).toLocaleDateString() + " " + new Date(Date.now() + (file.size - (offset + chunkSize)) / avg(speeds) * 1000).toTimeString().split(" ")[0];
+                        dateEnd.title = "It is an estimate!";
+                    }
+                    offset += chunkSize;
+                }
+                dateEnd.innerText = new Date().toLocaleDateString() + " " + new Date().toTimeString().split(" ")[0];
+                dateEnd.title = "";
+                progressBar.value = 100;
+                progress.title = "downloaded " + bytesToReadable(file.size);
+            });
+
+            function bytesToReadable(bytes) {
+                bytes = Math.floor(bytes);
+                let readable = "";
+                if (Math.floor(bytes / 1024 / 1024 / 1024)) readable = readable + Math.floor(bytes / 1024 / 1024 / 1024) + " GB ";
+                if (Math.floor(bytes / 1024 / 1024 % 1024)) readable = readable + Math.floor(bytes / 1024 / 1024 % 1024) + " MB ";
+                if (Math.floor(bytes / 1024 % 1024)) readable = readable + Math.floor(bytes / 1024 % 1024) + " KB ";
+                if (Math.floor(bytes % 1024)) readable = readable + (bytes % 1024) + " B ";
+                readable = readable.trim();
+                return readable;
+            }
+        </script>
+    </body>
+</html>
