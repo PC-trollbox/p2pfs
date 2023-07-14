@@ -84,6 +84,7 @@
 
                     socket.on("chunk", function(chunkData, ack) {
                         chunks.push(chunkData.chunk);
+                        progress.title = "downloaded " + bytesToReadable(handshakeData.chunkSize * chunks.length) + " out of " + bytesToReadable(handshakeData.fileSize);
                         transferredBytesPerSecond += handshakeData.chunkSize;
                         if (previousSpeedDate + 1000 < Date.now()) {
                             previousSpeedDate = Date.now();
@@ -100,6 +101,7 @@
                             endTime.innerText = new Date().toLocaleDateString() + " " + new Date().toTimeString().split(" ")[0];
                             endTime.title = "";
                             doNotRedownload = true;
+                            progress.title = "downloaded " + bytesToReadable(handshakeData.fileSize);
                             onbeforeunload = null;
                             progressBar.value = 100;
                             let file = new Uint8Array(handshakeData.fileSize);
