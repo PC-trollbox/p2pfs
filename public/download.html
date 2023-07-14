@@ -79,10 +79,13 @@
                     let speeds = [];
                     let transferredBytesPerSecond = 0;
                     let previousSpeedDate = Date.now();
+                    let invalidate = false;
                     fileSize.innerText = bytesToReadable(handshakeData.fileSize);
                     startTime.innerText = new Date().toLocaleDateString() + " " + new Date().toTimeString().split(" ")[0];
+                    socket.once("disconnect", () => invalidate = true);
 
                     socket.once("chunk", function(chunkData, ack) {
+                        if (invalidate) return;
                         chunks.push(chunkData.chunk);
                         progressBar.title = "downloaded " + bytesToReadable(handshakeData.chunkSize * chunks.length) + " out of " + bytesToReadable(handshakeData.fileSize);
                         transferredBytesPerSecond += handshakeData.chunkSize;

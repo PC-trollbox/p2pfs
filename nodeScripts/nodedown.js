@@ -37,13 +37,17 @@ if (params.values.help) {
 } else {
     let socket = io(params.values.server);
     socket.on("connect", function() {
+        let invalidate = false;
         socket.emit("download_request", params.values.downloadid);
+        socket.once("disconnect", () => invalidate = true);
         socket.once("download_ack", function(handshakeData) {
+            if (invalidate) return;
             let endFile = params.positionals[0] ? fs.createWriteStream(params.positionals[0]) : process.stdout;
             let speeds = [];
             let transferredBytesPerSecond = 0;
             let previousSpeedDate = Date.now();
             socket.once("chunk", function chunkHandler(chunkData, ack) {
+                if (invalidate) return;
                 endFile.write(chunkData.chunk);
                 if (params.values["show-download-stats"]) {
                     transferredBytesPerSecond += handshakeData.chunkSize;
