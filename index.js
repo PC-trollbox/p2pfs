@@ -60,12 +60,9 @@ io.on('connection', function (client) {
     });
 
     client.on("connAlias", function(alias2) {
-        if (!alias2) {
-            delete sockets[alias];
-            return client.emit("connAliasValid");
-        }
-        if (sockets.hasOwnProperty(alias2)) return;
         if (alias) delete sockets[alias];
+        if (!alias2) return client.emit("connAliasValid");
+        if (sockets.hasOwnProperty(alias2)) return;
         alias = alias2;
         sockets[alias] = client;
         client.emit("connAliasValid");
