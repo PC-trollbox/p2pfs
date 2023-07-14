@@ -78,6 +78,9 @@
                 downloadID.innerText = socket.id;
                 ipDisplay.hidden = true;
                 await closeModal();
+                downloadAlias.style.borderColor = "red";
+                socket.emit("connAlias", downloadAlias.value);
+                socket.once("connAliasValid", () => downloadAlias.style.borderColor = "green");
             });
 
             socket.on("useIP", function(ip) {
