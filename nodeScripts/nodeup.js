@@ -48,7 +48,7 @@ if (params.values.help) {
 } else {
     let socket = io(params.values.server);
     socket.on("connect", function() {
-        let correctOptions = params.values["show-download-id"].filter(a => ["socket", "ip", "alias"].includes(a));
+        let correctOptions = (params.values["show-download-id"] || []).filter(a => ["socket", "ip", "alias"].includes(a));
         socket.emit("connAlias", params.values.downloadid);
         socket.once("useIP", (b) => correctOptions = correctOptions.map(a => a == "ip" ? b : a));
         socket.once("connAliasValid", () => correctOptions = correctOptions.map(a => a == "alias" ? params.values.downloadid : a));
