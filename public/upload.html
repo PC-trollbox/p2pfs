@@ -87,7 +87,7 @@
 
             setDownloadAlias.onclick = function() {
                 downloadAlias.style.borderColor = "red";
-                socket.emit("connAlias", downloadAlias);
+                socket.emit("connAlias", downloadAlias.value);
                 socket.once("connAliasValid", () => downloadAlias.style.borderColor = "green");
             }
 
