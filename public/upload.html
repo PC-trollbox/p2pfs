@@ -15,7 +15,7 @@
         <div id="ipDisplay" hidden onclick="ipDisplay.hidden = true;" title="Hide IP until the next reconnection">
             <b>Download ID</b>: <code id="ipLabel">n/a</code>
         </div>
-        <b>Download ID alias</b> <em title="Allows you to connect without an unreliable download ID or your IP">[?]</em>: <input id="downloadAlias">
+        <b>Download ID alias</b> <em title="Allows you to connect without an unreliable download ID or your IP">[?]</em>: <input id="downloadAlias"> <button id="setDownloadAlias">SET</button>
         <br>
         <b>File</b>: <input type="file" id="fileSelector">
         <br>
@@ -85,9 +85,9 @@
                 ipLabel.innerText = ip;
             });
 
-            downloadAlias.oninput = function() {
-                socket.emit("connAlias", downloadAlias);
+            setDownloadAlias.onclick = function() {
                 downloadAlias.style.borderColor = "red";
+                socket.emit("connAlias", downloadAlias);
                 socket.once("connAliasValid", () => downloadAlias.style.borderColor = "green");
             }
 
