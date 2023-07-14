@@ -74,7 +74,7 @@
                 socket.on("connect", () => doNotRedownload ? null : socket.emit("download_request", id));
                 socket.emit("download_request", id);
                 downloadNow.remove();
-                socket.on("download_ack", function(handshakeData) {
+                socket.once("download_ack", function(handshakeData) {
                     let chunks = [];
                     let speeds = [];
                     let transferredBytesPerSecond = 0;
@@ -82,7 +82,7 @@
                     fileSize.innerText = bytesToReadable(handshakeData.fileSize);
                     startTime.innerText = new Date().toLocaleDateString() + " " + new Date().toTimeString().split(" ")[0];
 
-                    socket.on("chunk", function(chunkData, ack) {
+                    socket.once("chunk", function(chunkData, ack) {
                         chunks.push(chunkData.chunk);
                         progressBar.title = "downloaded " + bytesToReadable(handshakeData.chunkSize * chunks.length) + " out of " + bytesToReadable(handshakeData.fileSize);
                         transferredBytesPerSecond += handshakeData.chunkSize;
@@ -119,6 +119,7 @@
                             downloadLink.click();
                         }
 
+                        socket.once("chunk", chunkHandler);
                         ack();
                     });
                 });
