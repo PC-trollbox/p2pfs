@@ -12,6 +12,11 @@
         <hr>
         <b>Download ID</b>: <code id="downloadID">n/a</code>
         <br>
+        <div id="ipDisplay" hidden onclick="ipDisplay.hidden = true;" title="Hide IP until the next reconnection">
+            <b>Download ID</b>: <code id="ipLabel">n/a</code>
+        </div>
+        <b>Download ID alias</b> <em title="Allows you to connect without an unreliable download ID or your IP">[?]</em>: <input id="downloadAlias">
+        <br>
         <b>File</b>: <input type="file" id="fileSelector">
         <br>
         <b>Chunk size</b> <em title="Only modify if you know what you're doing. May affect download speed. Specify in bytes. Default value is 1048576 (1 MB)">[?]</em>: <input type="number" id="chunkSize" value="1048576">
@@ -71,8 +76,20 @@
 
             socket.on("connect", async function() {
                 downloadID.innerText = socket.id;
+                ipDisplay.hidden = true;
                 await closeModal();
             });
+
+            socket.on("useIP", function(ip) {
+                ipDisplay.hidden = false;
+                ipLabel.innerText = ip;
+            });
+
+            downloadAlias.oninput = function() {
+                socket.emit("connAlias", downloadAlias);
+                downloadAlias.style.borderColor = "red";
+                socket.once("connAliasValid", () => downloadAlias.style.borderColor = "green");
+            }
 
             uploadNow.onclick = function() {
                 if (!fileSelector.files[0]) return alert("You forgot to select a file");
@@ -86,6 +103,7 @@
                 fileSelector.disabled = true;
                 callUsOnUpload.forEach(ok => ok());
                 callUsOnUpload.length = 0;
+                onbeforeunload = () => false;
             }
 
             function waitUntilFileProvided() {

@@ -65,3 +65,10 @@ table, tr, td, th {
 .modalClose {
     animation: modalClosing ease 0.5s;
 }
+
+#ipDisplay {
+    background: #181a1b;
+    color: white;
+    width: fit-content;
+    border-radius: 5px;
+}

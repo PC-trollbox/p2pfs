@@ -69,6 +69,7 @@
 
             downloadNow.onclick = function() {
                 let id = downloadID.value;
+                onbeforeunload = () => false;
                 downloadID.disabled = true;
                 socket.on("connect", () => doNotRedownload ? null : socket.emit("download_request", id));
                 socket.emit("download_request", id);
@@ -99,6 +100,7 @@
                             endTime.innerText = new Date().toLocaleDateString() + " " + new Date().toTimeString().split(" ")[0];
                             endTime.title = "";
                             doNotRedownload = true;
+                            onbeforeunload = null;
                             progressBar.value = 100;
                             let file = new Uint8Array(handshakeData.fileSize);
                             let offset = 0;
