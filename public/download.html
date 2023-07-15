@@ -84,7 +84,7 @@
                     startTime.innerText = new Date().toLocaleDateString() + " " + new Date().toTimeString().split(" ")[0];
                     socket.once("disconnect", () => invalidate = true);
 
-                    socket.once("chunk", function(chunkData, ack) {
+                    socket.once("chunk", function chunkHandler(chunkData, ack) {
                         if (invalidate) return;
                         chunks.push(chunkData.chunk);
                         progressBar.title = "downloaded " + bytesToReadable(handshakeData.chunkSize * chunks.length) + " out of " + bytesToReadable(handshakeData.fileSize);
