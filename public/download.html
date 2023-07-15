@@ -22,6 +22,8 @@
         <br>
         End time: <label id="endTime">calculating...</label>
         <br>
+        Remaining time: <label id="remainingTime">calculating...</label>
+        <br>
         Progress: <progress id="progressBar" value="0" max="100"></progress>
         <br>
         <em>Your IP will be logged. Please note that an IP address is public information.</em>
@@ -97,12 +99,16 @@
                             speed.title = "min: " + bytesToReadable(Math.min(...speeds)) + " (" + Math.min(...speeds) + " bytes)\nmax: " + bytesToReadable(Math.max(...speeds)) + " (" + Math.max(...speeds) + " bytes)\navg: " + bytesToReadable(avg(speeds)) + " (" + avg(speeds) + " bytes)";
                             endTime.innerText = new Date(Date.now() + (handshakeData.fileSize - handshakeData.chunkSize * chunks.length) / avg(speeds) * 1000).toLocaleDateString() + " " + new Date(Date.now() + (handshakeData.fileSize - handshakeData.chunkSize * chunks.length) / avg(speeds) * 1000).toTimeString().split(" ")[0];
                             endTime.title = "It is an estimate!";
+                            remainingTime.title = "Also an estimate!";
+                            remainingTime.innerText = readableEndTime((handshakeData.fileSize - handshakeData.chunkSize * chunks.length) / avg(speeds));
                         }
                         progressBar.value = (handshakeData.chunkSize * chunks.length) / handshakeData.fileSize * 100;
 
                         if ((chunks.length * handshakeData.chunkSize) >= handshakeData.fileSize) {
+                            remainingTime.innerText = "0s";
                             endTime.innerText = new Date().toLocaleDateString() + " " + new Date().toTimeString().split(" ")[0];
                             endTime.title = "";
+                            remainingTime.title = "";
                             doNotRedownload = true;
                             progressBar.title = "downloaded " + bytesToReadable(handshakeData.fileSize);
                             onbeforeunload = null;
@@ -135,6 +141,18 @@
                 if (Math.floor(bytes / 1024 / 1024 % 1024)) readable = readable + Math.floor(bytes / 1024 / 1024 % 1024) + " MB ";
                 if (Math.floor(bytes / 1024 % 1024)) readable = readable + Math.floor(bytes / 1024 % 1024) + " KB ";
                 if (Math.floor(bytes % 1024)) readable = readable + (bytes % 1024) + " B ";
+                readable = readable.trim();
+                return readable;
+            }
+
+            function readableEndTime(sec) {
+                sec = Math.floor(sec);
+                let readable = "";
+                if (Math.floor(sec / 60 / 60 / 24)) readable = readable + Math.floor(sec / 60 / 60 / 24) + "d ";
+                if (Math.floor(sec / 60 / 60 % 24)) readable = readable + Math.floor(sec / 60 / 60 % 24) + "h ";
+                if (Math.floor(sec / 60 % 60)) readable = readable + Math.floor(sec / 60 % 60) + "min ";
+                if (Math.floor(sec % 60)) readable = readable + Math.floor(sec % 60) + "s";
+                if (sec == 0) readable = "0s";
                 readable = readable.trim();
                 return readable;
             }

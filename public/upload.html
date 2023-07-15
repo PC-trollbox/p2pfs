@@ -34,6 +34,7 @@
                 <th>Date of start</th>
                 <th>Date of end</th>
                 <th>Progress bar</th>
+                <th>Time remaining</th>
             </tr>
         </table>
         <div class="modalOverlay" id="modalOverlay"></div>
@@ -128,6 +129,7 @@
                 let dateEnd = document.createElement("td");
                 let progress = document.createElement("td");
                 let progressBar = document.createElement("progress");
+                let remainingTime = document.createElement("td");
                 let speeds = [];
                 let transferredBytesPerSecond = 0;
                 let previousSpeedDate = Date.now();
@@ -137,11 +139,13 @@
                 dateEnd.innerText = "calculating...";
                 progressBar.max = 100;
                 progressBar.value = 0;
+                remainingTime.innerText = "calculating...";
                 row.appendChild(ip);
                 row.appendChild(speed);
                 row.appendChild(dateStart);
                 row.appendChild(dateEnd);
                 row.appendChild(progress);
+                row.appendChild(remainingTime);
                 progress.appendChild(progressBar);
                 downloadTable.appendChild(row);
                 await waitUntilFileProvided();
@@ -171,6 +175,8 @@
                         speed.title = "min: " + bytesToReadable(Math.min(...speeds)) + " (" + Math.min(...speeds) + " bytes)\nmax: " + bytesToReadable(Math.max(...speeds)) + " (" + Math.max(...speeds) + " bytes)\navg: " + bytesToReadable(avg(speeds)) + " (" + avg(speeds) + " bytes)";
                         dateEnd.innerText = new Date(Date.now() + (file.size - (offset + chunkSize)) / avg(speeds) * 1000).toLocaleDateString() + " " + new Date(Date.now() + (file.size - (offset + chunkSize)) / avg(speeds) * 1000).toTimeString().split(" ")[0];
                         dateEnd.title = "It is an estimate!";
+                        remainingTime.innerText = readableEndTime((file.size - (offset + chunkSize)) / avg(speeds));
+                        remainingTime.title = "Also an estimate!";
                     }
                     offset += chunkSize;
                 }
@@ -178,6 +184,8 @@
                 dateEnd.title = "";
                 progressBar.value = 100;
                 progress.title = "downloaded " + bytesToReadable(file.size);
+                remainingTime.innerText = "0s";
+                remainingTime.title = "";
             });
 
             function bytesToReadable(bytes) {
@@ -187,6 +195,18 @@
                 if (Math.floor(bytes / 1024 / 1024 % 1024)) readable = readable + Math.floor(bytes / 1024 / 1024 % 1024) + " MB ";
                 if (Math.floor(bytes / 1024 % 1024)) readable = readable + Math.floor(bytes / 1024 % 1024) + " KB ";
                 if (Math.floor(bytes % 1024)) readable = readable + (bytes % 1024) + " B ";
+                readable = readable.trim();
+                return readable;
+            }
+
+            function readableEndTime(sec) {
+                sec = Math.floor(sec);
+                let readable = "";
+                if (Math.floor(sec / 60 / 60 / 24)) readable = readable + Math.floor(sec / 60 / 60 / 24) + "d ";
+                if (Math.floor(sec / 60 / 60 % 24)) readable = readable + Math.floor(sec / 60 / 60 % 24) + "h ";
+                if (Math.floor(sec / 60 % 60)) readable = readable + Math.floor(sec / 60 % 60) + "min ";
+                if (Math.floor(sec % 60)) readable = readable + Math.floor(sec % 60) + "s";
+                if (sec == 0) readable = "0s";
                 readable = readable.trim();
                 return readable;
             }
