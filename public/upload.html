@@ -17,6 +17,8 @@
         </div>
         <b>Download ID alias</b> <em title="Allows you to connect without an unreliable download ID or your IP">[?]</em>: <input id="downloadAlias"> <button id="setDownloadAlias">SET</button>
         <br>
+        <b>File extension</b> <em title="Not required, but highly appreciated by people downloading through the official website.">[?]</em>: .<input id="fileExtension" placeholder="txt">
+        <br>
         <b>File</b>: <input type="file" id="fileSelector">
         <br>
         <b>Chunk size</b> <em title="Only modify if you know what you're doing. May affect download speed. Specify in bytes. Default value is 1048576 (1 MB)">[?]</em>: <input type="number" id="chunkSize" value="1048576">
@@ -146,6 +148,7 @@
                 socket.emit("download_ack", {
                     id: data.id,
                     fileSize: file.size,
+                    fileExt: fileExtension.value,
                     chunkSize
                 });
 
