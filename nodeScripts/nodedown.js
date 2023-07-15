@@ -46,17 +46,20 @@ if (params.values.help) {
             let speeds = [];
             let transferredBytesPerSecond = 0;
             let previousSpeedDate = Date.now();
+            let transferredData = 0;
             socket.once("chunk", function chunkHandler(chunkData, ack) {
                 if (invalidate) return;
                 endFile.write(chunkData.chunk);
                 if (params.values["show-download-stats"]) {
+                    transferredData += handshakeData.chunkSize;
                     transferredBytesPerSecond += handshakeData.chunkSize;
                     if (previousSpeedDate + 1000 < Date.now()) {
                         previousSpeedDate = Date.now();
                         speeds.push(transferredBytesPerSecond);
                         transferredBytesPerSecond = 0;
                     }
-                    process.stderr.write("\rdownloaded " + bytesToReadable(Math.min(chunkData.offset + handshakeData.chunkSize, handshakeData.fileSize)) + " out of " + bytesToReadable(handshakeData.fileSize) + " | " + bytesToReadable(avg(speeds)) + "/s");
+                    let line = "downloaded " + bytesToReadable(Math.min(chunkData.offset + handshakeData.chunkSize, handshakeData.fileSize)) + " out of " + bytesToReadable(handshakeData.fileSize) + " | " + bytesToReadable(avg(speeds)) + "/s" + " | " + readableEndTime((handshakeData.fileSize - transferredData) / avg(speeds));
+                    process.stderr.write("\r" + line + " ".repeat(Math.max((process.stderr.columns || 80) - line.length), 0));
                 }
                 ack();
                 socket.once("chunk", chunkHandler);
@@ -73,6 +76,18 @@ function bytesToReadable(bytes) {
     if (Math.floor(bytes / 1024 / 1024 % 1024)) readable = readable + Math.floor(bytes / 1024 / 1024 % 1024) + " MB ";
     if (Math.floor(bytes / 1024 % 1024)) readable = readable + Math.floor(bytes / 1024 % 1024) + " KB ";
     if (Math.floor(bytes % 1024)) readable = readable + (bytes % 1024) + " B ";
+    readable = readable.trim();
+    return readable;
+}
+
+function readableEndTime(sec) {
+    sec = Math.floor(sec);
+    let readable = "";
+    if (Math.floor(sec / 60 / 60 / 24)) readable = readable + Math.floor(sec / 60 / 60 / 24) + "d ";
+    if (Math.floor(sec / 60 / 60 % 24)) readable = readable + Math.floor(sec / 60 / 60 % 24) + "h ";
+    if (Math.floor(sec / 60 % 60)) readable = readable + Math.floor(sec / 60 % 60) + "min ";
+    if (Math.floor(sec % 60)) readable = readable + Math.floor(sec % 60) + "s";
+    if (sec == 0) readable = "0s";
     readable = readable.trim();
     return readable;
 }
